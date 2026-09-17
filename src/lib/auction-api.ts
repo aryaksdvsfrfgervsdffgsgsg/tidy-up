@@ -359,42 +359,15 @@ export async function confirmAuctionPayment(auctionId: string): Promise<SimpleRe
 }
 
 /* ---------------------------------------------------------------------------
- * Razorpay — winner pays after the auction ends, for winning amounts that
- * convert to Rs 10,00,000 or less (see PAYMENT_ACK_THRESHOLD_INR, the same
- * number reused as the gateway's ceiling). Above that, nothing changes: the
- * owner still confirms payment manually via confirmAuctionPayment() above.
- * The actual Razorpay Key Secret never reaches this file or the browser — it
- * lives only in the edge functions' server-side environment.
+ * Simulated Razorpay-style checkout — the winner "pays" after the auction
+ * ends, for winning amounts up to Rs 10,00,000. No Razorpay account, keys or
+ * real money are involved; see src/lib/payments.functions.ts. Above the
+ * ceiling nothing changes: the owner confirms payment manually via
+ * confirmAuctionPayment() above.
  * ------------------------------------------------------------------------- */
 
-export type RazorpayOrderResult =
-  | { ok: true; order_id: string; amount_paise: number; currency: string; key_id: string; auction_title: string }
-  | { ok: false; reason: string };
-
-/** Asks the server to open a Razorpay order for this auction's winning bid.
- * The server re-checks (and won't be fooled by a stale client) that the
- * caller is the winner, the auction has ended, it isn't already paid, and the
- * INR amount is within the gateway's Rs 10,00,000 ceiling. */
-export async function createRazorpayOrder(auctionId: string): Promise<RazorpayOrderResult> {
-  const { data, error } = await supabase.functions.invoke("create-razorpay-order", {
-    body: { auction_id: auctionId },
-  });
-  if (error) return { ok: false, reason: friendlyDbError(error) };
-  return data as RazorpayOrderResult;
-}
-
-/** Hands the three values Razorpay Checkout.js returns on success to the
- * server, which verifies the HMAC signature before marking anything paid —
- * a client alone can never mark its own payment confirmed. */
-export async function verifyRazorpayPayment(payload: {
-  razorpay_order_id: string;
-  razorpay_payment_id: string;
-  razorpay_signature: string;
-}): Promise<SimpleResult> {
-  const { data, error } = await supabase.functions.invoke("verify-razorpay-payment", { body: payload });
-  if (error) return { ok: false, reason: friendlyDbError(error) };
-  return data as unknown as SimpleResult;
-}
+export type { SimulatedOrder, SimulatedPaymentResult } from "./payments.functions";
+export { createSimulatedOrder, settleSimulatedPayment } from "./payments.functions";
 
 export const canPayViaGateway = (auction: Auction, userId: string | undefined) =>
   !!userId &&

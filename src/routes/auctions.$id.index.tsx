@@ -31,12 +31,12 @@ import {
   PAYMENT_ACK_THRESHOLD_INR,
   canPayViaGateway,
   checkInvariant,
-  createRazorpayOrder,
+  createSimulatedOrder,
   deleteAuction,
   getAuction,
   hasWinner,
   joinPrivateAuction,
-  verifyRazorpayPayment,
+  settleSimulatedPayment,
   listBids,
   listMessages,
   listParticipants,
@@ -99,6 +99,7 @@ function AuctionPage() {
   const [deleting, setDeleting] = useState(false);
   const [payBusy, setPayBusy] = useState(false);
   const [payNotice, setPayNotice] = useState<string | null>(null);
+  const [pendingOrder, setPendingOrder] = useState<{ orderId: string; amountInr: number; title: string } | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
@@ -251,56 +252,42 @@ function AuctionPage() {
     }
   }
 
-  function loadRazorpayCheckout(): Promise<void> {
-    if ((window as unknown as { Razorpay?: unknown }).Razorpay) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Couldn't load Razorpay's checkout script."));
-      document.body.appendChild(script);
-    });
-  }
-
+  /** Opens the simulated checkout: the server records a pending order, then the
+   *  dialog below stands in for the gateway's payment sheet. No real money. */
   async function payNow() {
     if (!auction) return;
     setPayBusy(true);
     setPayNotice(null);
     try {
-      const order = await createRazorpayOrder(auction.id);
+      const order = await createSimulatedOrder({ data: { auctionId: auction.id } });
       if (!order.ok) {
         setPayNotice(order.reason);
-        setPayBusy(false);
         return;
       }
-      await loadRazorpayCheckout();
-      const Razorpay = (window as unknown as { Razorpay: new (opts: Record<string, unknown>) => { open: () => void } }).Razorpay;
-      const checkout = new Razorpay({
-        key: order.key_id,
-        order_id: order.order_id,
-        amount: order.amount_paise,
-        currency: order.currency,
-        name: "BidBlock",
-        description: `Winning bid — ${order.auction_title}`,
-        prefill: { email: user?.email ?? "" },
-        theme: { color: "#0f172a" },
-        handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
-          const result = await verifyRazorpayPayment(response);
-          if (result.ok) {
-            setPayNotice(null);
-            queryClient.invalidateQueries({ queryKey: ["auction", id] });
-          } else {
-            // Already a full sentence from the edge function, not a short code.
-            setPayNotice(result.reason);
-          }
-          setPayBusy(false);
-        },
-        modal: { ondismiss: () => setPayBusy(false) },
-      });
-      checkout.open();
+      setPendingOrder({ orderId: order.order_id, amountInr: order.amount_inr, title: order.auction_title });
     } catch (err) {
-      setPayBusy(false);
       setPayNotice(err instanceof Error ? err.message : "Couldn't start the payment.");
+    } finally {
+      setPayBusy(false);
+    }
+  }
+
+  async function settlePayment(outcome: "success" | "failure") {
+    if (!pendingOrder) return;
+    setPayBusy(true);
+    try {
+      const result = await settleSimulatedPayment({ data: { orderId: pendingOrder.orderId, outcome } });
+      setPendingOrder(null);
+      if (result.ok) {
+        setPayNotice(null);
+        queryClient.invalidateQueries({ queryKey: ["auction", id] });
+      } else {
+        setPayNotice(result.reason);
+      }
+    } catch (err) {
+      setPayNotice(err instanceof Error ? err.message : "Couldn't complete the payment.");
+    } finally {
+      setPayBusy(false);
     }
   }
 
@@ -446,6 +433,29 @@ function AuctionPage() {
               )}
             </div>
           )}
+
+          <AlertDialog open={!!pendingOrder} onOpenChange={(open) => !open && setPendingOrder(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Pay {pendingOrder ? formatMoney(pendingOrder.amountInr, "INR") : ""}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Test checkout for “{pendingOrder?.title}”. No card details are collected and no money moves —
+                  confirming records this auction as paid.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <p className="font-mono text-xs text-muted-foreground">Order {pendingOrder?.orderId}</p>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={payBusy} onClick={() => settlePayment("failure")}>
+                  Cancel payment
+                </AlertDialogCancel>
+                <AlertDialogAction disabled={payBusy} onClick={() => settlePayment("success")}>
+                  {payBusy ? "Processing…" : "Confirm payment"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {isOwner && (
