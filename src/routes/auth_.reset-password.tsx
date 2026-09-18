@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export const Route = createFileRoute("/auth/reset-password")({
+export const Route = createFileRoute("/auth_/reset-password")({
   head: () => ({
     meta: [{ title: "Reset password — BidBlock" }],
   }),

@@ -16,7 +16,7 @@ import { Route as ManageRouteImport } from './routes/manage'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as PrivateRouteImport } from './routes/private'
 import { Route as AuctionsIdRouteImport } from './routes/auctions.$id'
-import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth_.reset-password'
 import { Route as AuctionsIdIndexRouteImport } from './routes/auctions.$id.index'
 import { Route as AuctionsIdEditRouteImport } from './routes/auctions.$id.edit'
 
@@ -56,9 +56,9 @@ const AuctionsIdRoute = AuctionsIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => AuthRoute,
+  id: '/auth_/reset-password',
+  path: '/auth/reset-password',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuctionsIdIndexRoute = AuctionsIdIndexRouteImport.update({
   id: '/',
@@ -74,7 +74,7 @@ const AuctionsIdEditRoute = AuctionsIdEditRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/auth': typeof AuthRouteWithChildren
+  '/auth': typeof AuthRoute
   '/manage': typeof ManageRoute
   '/notifications': typeof NotificationsRoute
   '/private': typeof PrivateRoute
@@ -86,7 +86,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/auth': typeof AuthRouteWithChildren
+  '/auth': typeof AuthRoute
   '/manage': typeof ManageRoute
   '/notifications': typeof NotificationsRoute
   '/private': typeof PrivateRoute
@@ -98,12 +98,12 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/auth': typeof AuthRouteWithChildren
+  '/auth': typeof AuthRoute
   '/manage': typeof ManageRoute
   '/notifications': typeof NotificationsRoute
   '/private': typeof PrivateRoute
   '/auctions/$id': typeof AuctionsIdRouteWithChildren
-  '/auth/reset-password': typeof AuthResetPasswordRoute
+  '/auth_/reset-password': typeof AuthResetPasswordRoute
   '/auctions/$id/edit': typeof AuctionsIdEditRoute
   '/auctions/$id/': typeof AuctionsIdIndexRoute
 }
@@ -140,7 +140,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/private'
     | '/auctions/$id'
-    | '/auth/reset-password'
+    | '/auth_/reset-password'
     | '/auctions/$id/edit'
     | '/auctions/$id/'
   fileRoutesById: FileRoutesById
@@ -148,11 +148,12 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
-  AuthRoute: typeof AuthRouteWithChildren
+  AuthRoute: typeof AuthRoute
   ManageRoute: typeof ManageRoute
   NotificationsRoute: typeof NotificationsRoute
   PrivateRoute: typeof PrivateRoute
   AuctionsIdRoute: typeof AuctionsIdRouteWithChildren
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -206,12 +207,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuctionsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth/reset-password': {
-      id: '/auth/reset-password'
-      path: '/reset-password'
+    '/auth_/reset-password': {
+      id: '/auth_/reset-password'
+      path: '/auth/reset-password'
       fullPath: '/auth/reset-password'
       preLoaderRoute: typeof AuthResetPasswordRouteImport
-      parentRoute: typeof AuthRoute
+      parentRoute: typeof rootRouteImport
     }
     '/auctions/$id/': {
       id: '/auctions/$id/'
@@ -230,16 +231,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AuthRouteChildren {
-  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
-}
-
-const AuthRouteChildren: AuthRouteChildren = {
-  AuthResetPasswordRoute: AuthResetPasswordRoute,
-}
-
-const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
-
 interface AuctionsIdRouteChildren {
   AuctionsIdEditRoute: typeof AuctionsIdEditRoute
   AuctionsIdIndexRoute: typeof AuctionsIdIndexRoute
@@ -257,11 +248,12 @@ const AuctionsIdRouteWithChildren = AuctionsIdRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
-  AuthRoute: AuthRouteWithChildren,
+  AuthRoute: AuthRoute,
   ManageRoute: ManageRoute,
   NotificationsRoute: NotificationsRoute,
   PrivateRoute: PrivateRoute,
   AuctionsIdRoute: AuctionsIdRouteWithChildren,
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
